@@ -9,14 +9,14 @@ const sqlConfig = {
   database: process.env.DB_NAME || '',
   server: process.env.DB_SERVER || '',
   options: {
-    encrypt: true, // Falls nötig, je nach SQL Server Konfiguration
+    encrypt: true,
     trustServerCertificate: true,
   },
 };
 
 async function connectToDatabase() {
     try {
-      const pool = await sql.connect(sqlConfig); // `await` notwendig, um die Verbindung zu erhalten
+      const pool = await sql.connect(sqlConfig);
       console.log('Verbindung erfolgreich!');
       return pool;
     } catch (err) {
@@ -26,10 +26,10 @@ async function connectToDatabase() {
   
   export async function queryDatabase(query: string) {
     try {
-      const pool = await connectToDatabase(); // Stelle sicher, dass `await` verwendet wird
+      const pool = await connectToDatabase();
       if (pool) {
-        const request = pool.request(); // Verwende die `request` Methode
-        const result = await request.query(query); // Beispielabfrage
+        const request = pool.request();
+        const result = await request.query(query);
         console.log(result);
         return result.recordset;
       }
