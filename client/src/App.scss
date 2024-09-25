@@ -36,7 +36,7 @@ h3 {
 
 table {
   width: calc(100vw - 40px);
-  max-height: calc(100vh - 200px);
+  height: calc(100vh - 260px);
   border-collapse: collapse;
   margin-bottom: 40px;
   border: 2px solid $app-fg;
@@ -47,11 +47,11 @@ table {
     color: white;
     padding: 10px;
     text-align: left;
-    height: 46px;
+    flex-grow: 1;
   }
 
   td {
-    height: 46px;
+    flex-grow: 1 !important;
     padding: 10px;
   }
 
@@ -74,15 +74,13 @@ table {
   }
 
   .select-article {
-    padding: 10px;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 12px;
 
     button {
-      margin: 0 5px;
-      padding: 5px 10px;
+      padding: 10px 15px;
       border: none;
       background-color: #4caf50;
       color: white;

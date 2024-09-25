@@ -115,8 +115,7 @@ app.post('/api/append-csv', (req, res) => {
     const isFileExists = !err;
 
     if (!isFileExists) {
-      const header = 'name;address;zip;city;customerFacingNumber;externalArticleId;articleName;quantity;KRT-Nr.;GAS Barcode;articleNumber';
-      fs.writeFile(filePath, header + '\n', (err) => {
+      fs.writeFile(filePath, '', (err) => {
         if (err) {
           return res.status(500).send('Fehler beim Schreiben in die Datei');
         }
@@ -145,16 +144,26 @@ const formatDate = (date:Date) => {
 };
 
 app.post('/api/move-csv', async (req, res) => {
+  const header = 'name;address;zip;city;customerFacingNumber;externalArticleId;articleName;quantity;KRT-Nr.;GAS Barcode;articleNumber';
+
   try {
     const todaysDate = formatDate(new Date());
     const sourcePath = path.join(__dirname, 'data.csv');
     const destinationPath = path.join(__dirname, '../../archiv/data_' + todaysDate + '.csv');
 
-    await fsextra.move(sourcePath, destinationPath, { overwrite: true }); // Move file with new name
-    res.status(200).json({ message: 'CSV file moved successfully!', filename: `data_${todaysDate}.csv` });
+    if (fs.existsSync(destinationPath)) {
+      const data = await fsextra.readFile(sourcePath, 'utf-8');
+      await fsextra.appendFile(destinationPath, data);
+      await fsextra.remove(sourcePath);
+    } else {
+      const data = await fsextra.readFile(sourcePath, 'utf-8');
+      await fsextra.writeFile(destinationPath, header + '\n' + data);
+      await fsextra.remove(sourcePath);
+    }
+    res.status(200).json({ message: 'CSV file moved/appended successfully!', filename: `data_${todaysDate}.csv` });
   } catch (error) {
-    console.error('Error moving the CSV file:', error);
-    res.status(500).json({ error: 'Failed to move the CSV file' });
+    console.error('Error moving/appending the CSV file:', error);
+    res.status(500).json({ error: 'Failed to move/append the CSV file' });
   }
 });
 
