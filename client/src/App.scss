@@ -103,7 +103,7 @@ table {
   width: 100%;
   padding: 0;
 
-  .cmd-back {
+  .cmd-back, .cmd-submit, .cmd-complete, .cmd-close {
     width: 8vw;
     height: 54px;
     background-color: $header-bg;
@@ -114,15 +114,12 @@ table {
     border-radius: 4px;
   }
 
-  .cmd-submit {
-    width: 8vw;
-    height: 60px;
-    background-color: $header-bg;
-    color: white;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    border-radius: 4px;
+  .right {
+    width: 25vw;
+    display: flex;
+    justify-content: end;
+    align-items: center;
+    gap: 20px;
   }
 }
 

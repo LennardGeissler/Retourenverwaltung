@@ -3,6 +3,7 @@ import cors from 'cors';
 import { queryDatabase } from './database';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import fsextra from 'fs-extra';
 import path from 'path';
 
 dotenv.config();
@@ -25,7 +26,8 @@ app.get('/api/orders/:barcode', async (req: Request, res: Response) => {
       a.dErstellt AS Erstelldatum,            
       l.dVersendet AS Lieferdatum,            
       adr.cVorname + ' ' + adr.cName AS Kundenname, 
-      adr.cStrasse + ', ' + adr.cPLZ + ' ' + adr.cOrt AS Adresse                 
+      adr.cStrasse + ', ' + adr.cPLZ + ' ' + adr.cOrt AS Adresse,
+      tv.cEnclosedReturnIdentCode AS GASBarcode              
     FROM 
       Verkauf.tAuftrag a
     INNER JOIN
@@ -40,8 +42,12 @@ app.get('/api/orders/:barcode', async (req: Request, res: Response) => {
       dbo.tLieferscheinEckdaten l ON lf.kLieferschein = l.kLieferschein
     INNER JOIN 
       Verkauf.tAuftragAdresse adr ON a.kAuftrag = adr.kAuftrag
+    INNER JOIN 
+      eazybusiness.dbo.tLieferschein tl ON tl.kBestellung = a.kAuftrag
+    INNER JOIN
+      eazybusiness.dbo.tVersand tv ON tv.kLieferschein = tl.kLieferschein
     WHERE
-      a.cAuftragsNr = '${barcode}';
+      a.cAuftragsNr = '${barcode}'
   `;
 
   try {
@@ -130,6 +136,27 @@ const appendCsvData = (filePath:any, csvData:any, res:any) => {
     res.status(200).send('Daten erfolgreich hinzugefügt');
   });
 };
+
+const formatDate = (date:Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+app.post('/api/move-csv', async (req, res) => {
+  try {
+    const todaysDate = formatDate(new Date());
+    const sourcePath = path.join(__dirname, 'data.csv');
+    const destinationPath = path.join(__dirname, '../../archiv/data_' + todaysDate + '.csv');
+
+    await fsextra.move(sourcePath, destinationPath, { overwrite: true }); // Move file with new name
+    res.status(200).json({ message: 'CSV file moved successfully!', filename: `data_${todaysDate}.csv` });
+  } catch (error) {
+    console.error('Error moving the CSV file:', error);
+    res.status(500).json({ error: 'Failed to move the CSV file' });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server läuft auf http://${process.env.DB_SERVER}:${port}`);
