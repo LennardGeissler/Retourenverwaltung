@@ -60,7 +60,7 @@ const App: React.FC = () => {
 
   const fetchOrders = async (barcode: string) => {
     try {
-      const data = await fetchData(`http://localhost:5000/api/orders/${barcode}`);
+      const data = await fetchData(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/orders/${barcode}`);
       setOrders(data);
       setShowArticles(false);
       setSelectedArticles([]);
@@ -75,8 +75,9 @@ const App: React.FC = () => {
   };
 
   const fetchArticles = async (orderNumber: string) => {
+    console.log(import.meta.env.VITE_SERVER, import.meta.env.VITE_PORT)
     try {
-      const data = await fetchData(`http://localhost:5000/api/articles/${orderNumber}`);
+      const data = await fetchData(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/articles/${orderNumber}`);
       const updatedArticles = data.map((article: { cBarcode: any }) => ({
         ...article,
         Rueckgabegrund: 'Keine Angabe',
@@ -163,7 +164,7 @@ const App: React.FC = () => {
       localStorage.setItem('csvData', csvData);
 
       try {
-        const response = await fetch('http://localhost:5000/api/append-csv', {
+        const response = await fetch(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/append-csv`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ csvData }),
