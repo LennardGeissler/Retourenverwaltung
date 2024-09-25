@@ -11,10 +11,13 @@ body {
   background-color: $app-bg;
   margin: 0;
   padding: 20px;
+  width: 100vw;
+  height: 100vh;
 }
 
 h1 {
   color: $app-fg;
+  font-size: 28px;
   margin-bottom: 12px;
 }
 
@@ -32,7 +35,8 @@ h3 {
 }
 
 table {
-  width: 100%;
+  width: calc(100vw - 40px);
+  max-height: calc(100vh - 200px);
   border-collapse: collapse;
   margin-bottom: 40px;
   border: 2px solid $app-fg;
@@ -43,24 +47,30 @@ table {
     color: white;
     padding: 10px;
     text-align: left;
-    height: 48px;
+    height: 46px;
   }
 
   td {
-    height: 48px;
+    height: 46px;
     padding: 10px;
-
-    &:hover {
-      background-color: $table-row-hover-bg;
-    }
   }
 
   tr:nth-child(2n) {
-    background-color: #f0f0f0; // Helle Farbe für gerade Zeilen
+    background-color: #f0f0f0;
+
+    &:hover {
+      background-color: rgba($color: $header-bg, $alpha: 0.08);
+      cursor: pointer;
+    }
   }
 
   tr:nth-child(2n + 1) {
-    background-color: #ffffff; // Weiße Farbe für ungerade Zeilen
+    background-color: #ffffff;
+
+    &:hover {
+      background-color: rgba($color: $header-bg, $alpha: 0.08);
+      cursor: pointer;
+    }
   }
 
   .select-article {
@@ -68,7 +78,7 @@ table {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 
     button {
       margin: 0 5px;
@@ -87,14 +97,6 @@ table {
   }
 }
 
-.error-message {
-  background-color: $error-color;
-  padding: 15px;
-  border-radius: 5px;
-  margin-top: 20px;
-  color: white;
-}
-
 .button-group {
   display: flex;
   justify-content: space-between;
@@ -103,7 +105,7 @@ table {
 
   .cmd-back {
     width: 8vw;
-    height: 60px;
+    height: 54px;
     background-color: $header-bg;
     color: white;
     border: none;

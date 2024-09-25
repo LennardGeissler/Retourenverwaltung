@@ -23,6 +23,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": [
-    "client/src/**/*"
+    "client/src"
   ]
 }

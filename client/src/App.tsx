@@ -31,6 +31,12 @@ interface AddressParts {
   city: string;
 }
 
+const fetchData = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Fetch Error');
+  return response.json();
+};
+
 const App: React.FC = () => {
   const [barcode, setBarcode] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -54,12 +60,7 @@ const App: React.FC = () => {
 
   const fetchOrders = async (barcode: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/${barcode}`);
-      if (!response.ok) {
-        throw new Error('Fehler beim Abrufen der Aufträge');
-      }
-      const data = await response.json();
-      console.log('orders data:', data);
+      const data = await fetchData(`http://localhost:5000/api/orders/${barcode}`);
       setOrders(data);
       setShowArticles(false);
       setSelectedArticles([]);
@@ -75,13 +76,8 @@ const App: React.FC = () => {
 
   const fetchArticles = async (orderNumber: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/articles/${orderNumber}`);
-      if (!response.ok) {
-        throw new Error('Fehler beim Abrufen der Artikel');
-      }
-      const data = await response.json();
-
-      const updatedArticles = data.map((article: { cBarcode: any; }) => ({
+      const data = await fetchData(`http://localhost:5000/api/articles/${orderNumber}`);
+      const updatedArticles = data.map((article: { cBarcode: any }) => ({
         ...article,
         Rueckgabegrund: 'Keine Angabe',
         articleNumber: article.cBarcode,
@@ -103,44 +99,30 @@ const App: React.FC = () => {
   };
 
   const handleOrderClick = (order: Order) => {
-    console.log('handleOrder')
     setSelectedOrder([order]);
     fetchArticles(order.Auftragsnummer.toString());
   };
 
-  const toggleSelectArticle = (articleNumber: string) => {
+  const toggleSelectArticle = (articleNumber: string, action: 'increase' | 'decrease') => {
     setSelectedArticles((prev) => {
       const existingArticle = prev.find(a => a.articleNumber === articleNumber);
       const article = articles.find(a => a.Artikel === articleNumber);
 
       if (existingArticle && article) {
-        // Artikel existiert bereits in der Auswahl
-        if (existingArticle.quantity < article.Anzahl) {
-          // Erhöhe die Anzahl
-          const updatedSelected = prev.map(a =>
-            a.articleNumber === articleNumber
-              ? { ...a, quantity: a.quantity + 1 }
-              : a
-          );
-          checkAllArticlesSelected(updatedSelected); // Überprüfe nach jeder Änderung
-          return updatedSelected;
-        } else {
-          // Verringere die Anzahl
-          const updatedSelected = prev.map(a =>
-            a.articleNumber === articleNumber
-              ? { ...a, quantity: a.quantity - 1 }
-              : a
-          );
-          checkAllArticlesSelected(updatedSelected); // Überprüfe nach jeder Änderung
-          return updatedSelected;
-        }
-      } else if (article) {
-        // Füge neuen Artikel zur Auswahl hinzu
-        const updatedSelected = [...prev, { articleNumber, quantity: 1 }];
-        checkAllArticlesSelected(updatedSelected); // Überprüfe nach jeder Änderung
+        const updatedSelected = prev.map(a => {
+          if (a.articleNumber === articleNumber) {
+            const newQuantity = action === 'increase' ? a.quantity + 1 : a.quantity - 1;
+            return { ...a, quantity: Math.max(0, Math.min(newQuantity, article.Anzahl)) };
+          }
+          return a;
+        });
+        checkAllArticlesSelected(updatedSelected);
         return updatedSelected;
+      } else if (article && action === 'increase') {
+        const newSelected = [...prev, { articleNumber, quantity: 1 }];
+        checkAllArticlesSelected(newSelected);
+        return newSelected;
       }
-      setBarcode('')
       return prev;
     });
   };
@@ -152,7 +134,7 @@ const App: React.FC = () => {
     if (showArticles && inputMode === 'article') {
       const articleToSelect = articles.find(article => article.Artikel === value);
       if (articleToSelect) {
-        toggleSelectArticle(articleToSelect.Artikel);
+        toggleSelectArticle(articleToSelect.Artikel, 'increase');
       }
     } else if (inputMode === 'order') {
       fetchOrders(value);
@@ -162,12 +144,8 @@ const App: React.FC = () => {
   };
 
   const generateCSV = async (updatedSelectedArticles: SelectedArticle[]) => {
-    console.log('CSV!')
     const csvRows: string[] = [];
-    // const header = 'name;address;zip;city;customerFacingNumber;externalArticleId;articleName;quantity;KRT-Nr.;GAS Barcode;articleNumber';
-    // csvRows.push(header);
 
-    console.log('Selected Articles:', updatedSelectedArticles);
     if (selectedOrder) {
       console.log(selectedOrder)
       const parsedAdress = parseAddress(selectedOrder[0].Adresse);
@@ -187,20 +165,12 @@ const App: React.FC = () => {
       try {
         const response = await fetch('http://localhost:5000/api/append-csv', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ csvData }),
         });
 
-        console.log(response);
+        if (!response.ok) throw new Error('Fehler beim Anhängen der Daten');
 
-        if (!response.ok) {
-          setMessage('Fehler beim Anlegen der Retoure!');
-          throw new Error('Fehler beim Anhängen der Daten');
-        }
-
-        console.log('Daten erfolgreich hinzugefügt!');
         setMessage('Retoure erfolgreich angelegt!')
       } catch (error) {
         setMessage('Fehler beim Anlegen der Retoure!');
@@ -211,11 +181,11 @@ const App: React.FC = () => {
 
   let csvGenerated = false;
 
-  const checkAllArticlesSelected = async (updatedSelectedArticles: any[]) => {
+  const checkAllArticlesSelected = async (updatedSelectedArticles: SelectedArticle[]) => {
     let allSelected = true;
 
     articles.forEach((article) => {
-      const selectedArticle = updatedSelectedArticles.find((a: { articleNumber: string; }) => a.articleNumber === article.Artikel);
+      const selectedArticle = updatedSelectedArticles.find(a => a.articleNumber === article.Artikel);
       const selectedQuantity = selectedArticle ? selectedArticle.quantity : 0;
 
       if (selectedQuantity !== article.Anzahl) {
@@ -223,18 +193,16 @@ const App: React.FC = () => {
       }
     });
 
-    console.log(allSelected);
-    if (allSelected && !csvGenerated) { // Überprüfen Sie, ob CSV bereits generiert wurde
-      csvGenerated = true; // Setzen Sie das Flag
+    if (allSelected && updatedSelectedArticles.length > 0 && !csvGenerated) {
+      csvGenerated = true;
       await generateCSV(updatedSelectedArticles);
       handleBack();
     } else if (!allSelected) {
-      csvGenerated = false; // Setzen Sie das Flag zurück, wenn nicht alle ausgewählt sind
+      csvGenerated = false;
     }
   };
 
   const parseAddress = (address: string): AddressParts => {
-    // Teile die Adresse am Komma
     const parts = address.split(',').map(part => part.trim());
     console.log(address, parts)
 
@@ -300,7 +268,7 @@ const App: React.FC = () => {
                   <td>{order.Adresse}</td>
                 </tr>
               ))}
-              {orders.length < 16 && Array.from({ length: 16 - orders.length }).map((_, index) => (
+              {orders.length < 14 && Array.from({ length: 14 - orders.length }).map((_, index) => (
                 <tr key={`empty-${index}`}>
                   <td colSpan={7}>&nbsp;</td>
                 </tr>
@@ -333,21 +301,14 @@ const App: React.FC = () => {
                     <td>{article.Retourenstatus}</td>
                     <td>{article.Rueckgabegrund}</td>
                     <td className="select-article">
-                      <div className="checkbox-wrapper-19">
-                        <input
-                          type="checkbox"
-                          id={`cb-${article.Artikel}`}
-                          checked={selectedCount > 0}
-                          onChange={() => toggleSelectArticle(article.Artikel)}
-                        />
-                        <label htmlFor={`cb-${article.Artikel}`} className="check-box" />
-                      </div>
+                      <button onClick={() => toggleSelectArticle(article.Artikel, 'decrease')} disabled={selectedCount <= 0}>-</button>
                       <span>{selectedCount} / {article.Anzahl}</span>
+                      <button onClick={() => toggleSelectArticle(article.Artikel, 'increase')} disabled={selectedCount >= article.Anzahl}>+</button>
                     </td>
                   </tr>
                 );
               })}
-              {Array.from({ length: 16 - articles.length }).map((_, index) => (
+              {Array.from({ length: 14 - articles.length }).map((_, index) => (
                 <tr key={`empty-article-${index}`}>
                   <td colSpan={6}>&nbsp;</td>
                 </tr>
