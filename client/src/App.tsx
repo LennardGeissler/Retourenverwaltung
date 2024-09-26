@@ -47,6 +47,8 @@ const App: React.FC = () => {
   const [selectedArticles, setSelectedArticles] = useState<SelectedArticle[]>([]);
   const [inputMode, setInputMode] = useState<'order' | 'article'>('order');
   const [message, setMessage] = useState<string | null>('');
+  const [csvData, setCsvData] = useState<string[][]>([]); // Für CSV-Inhalt
+  const [showCsv, setShowCsv] = useState(false);
 
   const barcodeInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -146,6 +148,24 @@ const App: React.FC = () => {
       setInputMode('article');
     }
     setBarcode('');
+  };
+
+  const fetchCsvData = async () => {
+    console.log('Fetching CSV data!')
+    try {
+      const response = await fetch(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/get-csv`);
+      if (!response.ok) throw new Error('Fehler beim Abrufen der CSV-Daten');
+      const data = await response.text();
+      const parsedData = data
+        .split('\n')
+        .map((row) => row.split(';').map((col) => col.trim()));
+      setCsvData(parsedData);
+      console.log(parsedData)
+      setShowCsv(true);
+    } catch (error) {
+      console.error(error);
+      setMessage('Fehler beim Abrufen der CSV-Daten');
+    }
   };
 
   const generateCSV = async (updatedSelectedArticles: SelectedArticle[]) => {
@@ -270,6 +290,10 @@ const App: React.FC = () => {
     }
   };
 
+  const handleBackToMain = () => {
+    setShowCsv(false); // Zurück zur Standardansicht
+  };
+
   return (
     <div className="app">
       <h1>Retourenverwaltung</h1>
@@ -284,99 +308,154 @@ const App: React.FC = () => {
         <h3 style={message == 'Retoure erfolgreich angelegt!' || message == 'Retouren erfolgreich abgeschlossen!' ? { color: '#4caf50' } : { color: '#ff9999' }}>{message}</h3>
       </div>
 
-      {!showArticles ? (
+      {!showCsv ? (
         <>
-          <table>
-            <thead>
-              <tr>
-                <th>Retourennummer</th>
-                <th>Auftragsnummer</th>
-                <th>Rechnungsnummer</th>
-                <th>Erstelldatum</th>
-                <th>Lieferdatum</th>
-                <th>Kundenname</th>
-                <th>Adresse</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order, index) => (
-                <tr key={index} onClick={() => handleOrderClick(order)}>
-                  <td>{order.Retourennummer}</td>
-                  <td>{order.Auftragsnummer}</td>
-                  <td>{order.Rechnungsnummer}</td>
-                  <td>{new Date(order.Erstelldatum).toLocaleDateString()}</td>
-                  <td>{new Date(order.Lieferdatum).toLocaleDateString()}</td>
-                  <td>{order.Kundenname}</td>
-                  <td>{order.Adresse}</td>
-                </tr>
-              ))}
-              {orders.length < 14 && Array.from({ length: 14 - orders.length }).map((_, index) => (
-                <tr key={`empty-${index}`}>
-                  <td colSpan={7}>&nbsp;</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="button-group">
-            <button onClick={handleCloseApp} className='cmd-close'>Schließen</button>
-            <button onClick={handleCompleteReturns} className='cmd-complete'>Retouren abschließen</button>
-          </div>
+          {!showArticles ? (
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Retourennummer</th>
+                    <th>Auftragsnummer</th>
+                    <th>Rechnungsnummer</th>
+                    <th>Erstelldatum</th>
+                    <th>Lieferdatum</th>
+                    <th>Kundenname</th>
+                    <th>Adresse</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order, index) => (
+                    <tr key={index} onClick={() => handleOrderClick(order)}>
+                      <td>{order.Retourennummer}</td>
+                      <td>{order.Auftragsnummer}</td>
+                      <td>{order.Rechnungsnummer}</td>
+                      <td>{new Date(order.Erstelldatum).toLocaleDateString()}</td>
+                      <td>{new Date(order.Lieferdatum).toLocaleDateString()}</td>
+                      <td>{order.Kundenname}</td>
+                      <td>{order.Adresse}</td>
+                    </tr>
+                  ))}
+                  {orders.length < 14 && Array.from({ length: 14 - orders.length }).map((_, index) => (
+                    <tr key={`empty-${index}`}>
+                      <td colSpan={7}>&nbsp;</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="button-group">
+                <button onClick={handleCloseApp} className='cmd-close'>Schließen</button>
+                <div className="right">
+                  <button onClick={fetchCsvData} className='cmd-history'>Historie anzeigen</button>
+                  <button onClick={handleCompleteReturns} className='cmd-complete'>Retouren abschließen</button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Art.-Nr.</th>
+                    <th>Artikelname</th>
+                    <th>Menge</th>
+                    <th>Retourenstatus</th>
+                    <th>Rückgabegrund</th>
+                    <th className='select'> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {articles.map((article) => {
+                    const selectedArticle = selectedArticles.find(a => a.articleNumber === article.Artikel);
+                    const selectedCount = selectedArticle ? selectedArticle.quantity : 0;
+                    return (
+                      <tr key={article.Artikel}>
+                        <td>{article.Artikel}</td>
+                        <td>{article.Artikelname}</td>
+                        <td>{article.Anzahl}</td>
+                        <td>{article.Retourenstatus}</td>
+                        <td>{article.Rueckgabegrund}</td>
+                        <td>
+                          <div className="select-article">
+                            <button onClick={() => toggleSelectArticle(article.Artikel, 'decrease')} disabled={selectedCount <= 0}>-</button>
+                            <span>{selectedCount} / {article.Anzahl}</span>
+                            <button onClick={() => toggleSelectArticle(article.Artikel, 'increase')} disabled={selectedCount >= article.Anzahl}>+</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {Array.from({ length: 14 - articles.length }).map((_, index) => (
+                    <tr key={`empty-article-${index}`}>
+                      <td colSpan={6}>&nbsp;</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="button-group">
+                <button onClick={handleBack} className='cmd-back'>Zurück</button>
+                <div className="right">
+                  <button
+                    onClick={() => {
+                      generateCSV(selectedArticles)
+                      handleBack();
+                    }}
+                    className='cmd-submit'>Bestätigung</button>
+                </div>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <>
-          <table>
+          <div className="csv-grid-container" style={{ maxHeight: articles.length > 14 ? '400px' : 'none', overflowY: articles.length > 14 ? 'auto' : 'visible' }}>
+            {/* CSV-Ansicht */}
+            {/* <table>
             <thead>
               <tr>
-                <th>Art.-Nr.</th>
-                <th>Artikelname</th>
-                <th>Menge</th>
-                <th>Retourenstatus</th>
-                <th>Rückgabegrund</th>
-                <th></th>
+                {csvData[0]?.map((header, index) => (
+                  <th key={index}>
+                    {header == "customerFacingNumber" ? 'cAuftragsNr' : header == "externalArticleId" ? 'cArtNr' : header == "articleNumber" ? "cBarcode" : header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {articles.map((article) => {
-                const selectedArticle = selectedArticles.find(a => a.articleNumber === article.Artikel);
-                const selectedCount = selectedArticle ? selectedArticle.quantity : 0;
-                return (
-                  <tr key={article.Artikel}>
-                    <td>{article.Artikel}</td>
-                    <td>{article.Artikelname}</td>
-                    <td>{article.Anzahl}</td>
-                    <td>{article.Retourenstatus}</td>
-                    <td>{article.Rueckgabegrund}</td>
-                    <td>
-                      <div className="select-article">
-                        <button onClick={() => toggleSelectArticle(article.Artikel, 'decrease')} disabled={selectedCount <= 0}>-</button>
-                        <span>{selectedCount} / {article.Anzahl}</span>
-                        <button onClick={() => toggleSelectArticle(article.Artikel, 'increase')} disabled={selectedCount >= article.Anzahl}>+</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {Array.from({ length: 14 - articles.length }).map((_, index) => (
-                <tr key={`empty-article-${index}`}>
-                  <td colSpan={6}>&nbsp;</td>
+              {csvData.slice(1).map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((col, colIndex) => (
+                    <td key={colIndex}>{col}</td>
+                  ))}
                 </tr>
               ))}
             </tbody>
-          </table>
-          <div className="button-group">
-            <button onClick={handleBack} className='cmd-back'>Zurück</button>
-            <div className="right">
-              <button
-                onClick={() => {
-                  generateCSV(selectedArticles)
-                  handleBack();
-                }}
-                className='cmd-submit'>Bestätigung</button>
+          </table> */}
+            <div className="grid-header">
+              {csvData[0]?.map((header, index) => (
+                <div className="header-grid-cell header" key={index}>
+                  {header === "customerFacingNumber" ? 'cAuftragsNr' : header === "externalArticleId" ? 'cArtNr' : header === "articleNumber" ? "cBarcode" : header}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid-body" style={{ maxHeight: articles.length > 14 ? '400px' : 'none', overflowY: articles.length > 14 ? 'auto' : 'visible' }}>
+              {csvData.slice(1).map((row, rowIndex) => (
+                <div className="grid-row" key={rowIndex}>
+                  {row.map((col, colIndex) => (
+                    <div className="grid-cell" key={colIndex}>{col}</div>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
+          <div className="button-group">
+            <button onClick={handleBackToMain} className='cmd-back'>Zurück zur Übersicht</button>
+            <button onClick={handleCompleteReturns} className='cmd-complete'>Retouren abschließen</button>
+          </div>
         </>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 

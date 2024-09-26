@@ -43,9 +43,9 @@ app.get('/api/orders/:barcode', async (req: Request, res: Response) => {
     INNER JOIN 
       Verkauf.tAuftragAdresse adr ON a.kAuftrag = adr.kAuftrag
     INNER JOIN 
-      eazybusiness.dbo.tLieferschein tl ON tl.kBestellung = a.kAuftrag
+      dbo.tLieferschein tl ON tl.kBestellung = a.kAuftrag
     INNER JOIN
-      eazybusiness.dbo.tVersand tv ON tv.kLieferschein = tl.kLieferschein
+      dbo.tVersand tv ON tv.kLieferschein = tl.kLieferschein
     WHERE
       a.cAuftragsNr = '${barcode}'
   `;
@@ -107,7 +107,7 @@ app.get('/api/articles/:orderNumber', async (req: Request, res: Response) => {
 });
 
 app.post('/api/append-csv', (req, res) => {
-  const csvData = req.body.csvData; // CSV-Daten vom Client
+  const csvData = req.body.csvData;
   const filePath = path.join(__dirname, 'data.csv');
   console.log(csvData, filePath);
 
@@ -127,11 +127,24 @@ app.post('/api/append-csv', (req, res) => {
   });
 });
 
+app.get('/api/get-csv', (req, res) => {
+  const todaysDate = formatDate(new Date());
+  const fileName = `data_${todaysDate}.csv`;
+  const filePath = path.join(__dirname, `../../archiv/${fileName}`);
+
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) return res.status(404).send('CSV-Datei nicht gefunden.');
+
+    fs.readFile(filePath, 'utf8', (err, data) => {
+      if (err) return res.status(500).send('Fehler beim Lesen der CSV-Datei.');
+      res.send(data);
+    });
+  });
+});
+
 const appendCsvData = (filePath:any, csvData:any, res:any) => {
   fs.appendFile(filePath, csvData + '\n', (err) => {
-    if (err) {
-      return res.status(500).send('Fehler beim Schreiben in die Datei');
-    }
+    if (err) return res.status(500).send('Fehler beim Schreiben in die Datei');
     res.status(200).send('Daten erfolgreich hinzugefügt');
   });
 };
@@ -168,5 +181,5 @@ app.post('/api/move-csv', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server läuft auf http://${process.env.DB_SERVER}:${port}`);
+  console.log(`Server läuft auf http://localhost:${port}`);
 });
