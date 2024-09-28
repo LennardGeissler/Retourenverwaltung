@@ -3,7 +3,7 @@ import CSVTable from './components/CsvTable';
 import ArticlesTable from './components/ArticlesTable';
 import OrdersTable from './components/OrdersTable';
 import ButtonGroup from './components/ButtonGroup';
-import { Article, SelectedArticle, Order } from './types';
+import { SelectedArticle, Order } from './types';
 import { moveCsvFile } from './api';
 import './App.scss';
 import { useOrders } from './hooks/useOrders';
@@ -12,16 +12,14 @@ import { useCSV } from './hooks/useCSV';
 
 const App: React.FC = () => {
   const [barcode, setBarcode] = useState<string>('');
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [articles, setArticles] = useState<Article[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | undefined>();
   const [showArticles, setShowArticles] = useState<boolean>(false);
   const [selectedArticles, setSelectedArticles] = useState<SelectedArticle[]>([]);
   const [inputMode, setInputMode] = useState<'order' | 'article'>('order');
   const [message, setMessage] = useState<string>('');
 
-  const { handlefetchArticles } = useArticles({ setArticles, setShowArticles, setMessage })
-  const { handlefetchOrders } = useOrders({ setOrders, setShowArticles, setSelectedArticles, setSelectedOrder, handlefetchArticles });
+  const { handlefetchArticles, articles, setArticles } = useArticles({ setSelectedArticles, setShowArticles, setMessage })
+  const { handlefetchOrders, orders, setOrders } = useOrders({ setShowArticles, setSelectedArticles, setSelectedOrder, handlefetchArticles });
   const { handleGenerateCSV, loadCsvData, csvData, showCsv, setShowCsv } = useCSV({ selectedOrder, articles, setMessage });
 
   const barcodeInputRef = useRef<HTMLInputElement | null>(null);
@@ -48,6 +46,39 @@ const App: React.FC = () => {
     handlefetchArticles(order.Auftragsnummer.toString());
   };
 
+  const handleBarcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setBarcode(value);
+
+    if (showArticles && inputMode === 'article') {
+      const articleToSelect = articles.find(article => article.Artikel === value);
+      if (articleToSelect) {
+        toggleSelectArticle(articleToSelect.Artikel, 'increase');
+      }
+    } else if (inputMode === 'order') {
+      handlefetchOrders(value);
+      setInputMode('article');
+    }
+    setBarcode('');
+  };
+
+  const handleCompleteReturns = async () => {
+    if (window.confirm("Möchten Sie die Retouren wirklich abschließen?")) {
+      await moveCsvFile()
+    };
+  };
+
+  const handleCloseApp = () => {
+    if (window.confirm("Möchten Sie die Anwendung wirklich schließen?")) {
+      window.close()
+    };
+  };
+
+  const handleAddReturn = () => {
+    handleGenerateCSV(selectedArticles)
+    handleBack();
+  }
+
   const toggleSelectArticle = (articleNumber: string, action: 'increase' | 'decrease') => {
     setSelectedArticles((prev) => {
       const existingArticle = prev.find(a => a.articleNumber === articleNumber);
@@ -72,22 +103,6 @@ const App: React.FC = () => {
     });
   };
 
-  const handleBarcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setBarcode(value);
-
-    if (showArticles && inputMode === 'article') {
-      const articleToSelect = articles.find(article => article.Artikel === value);
-      if (articleToSelect) {
-        toggleSelectArticle(articleToSelect.Artikel, 'increase');
-      }
-    } else if (inputMode === 'order') {
-      handlefetchOrders(value);
-      setInputMode('article');
-    }
-    setBarcode('');
-  };
-
   let csvGenerated = false;
 
   const checkAllArticlesSelected = async (updatedSelectedArticles: SelectedArticle[]) => {
@@ -104,23 +119,6 @@ const App: React.FC = () => {
       csvGenerated = false;
     }
   };
-
-  const handleCompleteReturns = async () => {
-    if (window.confirm("Möchten Sie die Retouren wirklich abschließen?")) {
-      await moveCsvFile()
-    };
-  };
-
-  const handleCloseApp = () => {
-    if (window.confirm("Möchten Sie die Anwendung wirklich schließen?")) {
-      window.close()
-    };
-  };
-
-  const handleAddReturn = () => {
-    handleGenerateCSV(selectedArticles)
-    handleBack();
-  }
 
   return (
     <div className="app">

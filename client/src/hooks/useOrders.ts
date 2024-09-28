@@ -1,16 +1,17 @@
-import React, { SetStateAction } from 'react';
+import React, { SetStateAction, useState } from 'react';
 import { fetchOrders } from '../api';
 import { Order, SelectedArticle } from '../types';
 
 interface useOrdersProps {
-    setOrders: React.Dispatch<SetStateAction<Order[]>>,
     setShowArticles: (showArticles: boolean) => void,
     setSelectedArticles: (selectedArticles: SelectedArticle[]) => void,
     setSelectedOrder: React.Dispatch<SetStateAction<Order | undefined>>,
     handlefetchArticles: (orderNumber: string) => void;
 }
 
-export const useOrders = ({ setOrders, setShowArticles, setSelectedArticles, setSelectedOrder, handlefetchArticles }: useOrdersProps) => {
+export const useOrders = ({ setShowArticles, setSelectedArticles, setSelectedOrder, handlefetchArticles }: useOrdersProps) => {
+    const [orders, setOrders] = useState<Order[]>([]);
+
     const handlefetchOrders = async (barcode: string) => {
         try {
             const data = await fetchOrders(barcode);
@@ -27,5 +28,5 @@ export const useOrders = ({ setOrders, setShowArticles, setSelectedArticles, set
         }
     };
 
-    return { handlefetchOrders };
+    return { handlefetchOrders, orders, setOrders };
 };

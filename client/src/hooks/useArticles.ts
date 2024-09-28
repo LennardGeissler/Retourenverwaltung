@@ -1,30 +1,32 @@
-import React, { SetStateAction } from 'react';
+import React, { SetStateAction, useState } from 'react';
 import { fetchArticles } from '../api';
-import { Article } from '../types';
+import { Article, SelectedArticle } from '../types';
 
 interface useArticlesProps {
-    setArticles: React.Dispatch<SetStateAction<Article[]>>,
-    setShowArticles: (showArticles: boolean) => void,
-    setMessage: React.Dispatch<SetStateAction<string>>
+  setSelectedArticles: React.Dispatch<SetStateAction<SelectedArticle[]>>,
+  setShowArticles: (showArticles: boolean) => void,
+  setMessage: React.Dispatch<SetStateAction<string>>,
 }
 
-export const useArticles = ({ setArticles, setShowArticles, setMessage }: useArticlesProps) => {
-    const handlefetchArticles = async (orderNumber: string) => {
-        try {
-          const data = await fetchArticles(orderNumber);
-          const updatedArticles = data.map((article: { cBarcode: any }) => ({
-            ...article,
-            Rueckgabegrund: 'Keine Angabe',
-            articleNumber: article.cBarcode,
-          }));
-    
-          setArticles(updatedArticles);
-          setShowArticles(true);
-          setMessage('');
-        } catch (error) {
-          console.error(error);
-        }
-      };
+export const useArticles = ({ setShowArticles, setMessage }: useArticlesProps) => {
+  const [articles, setArticles] = useState<Article[]>([]);
 
-    return { handlefetchArticles };
+  const handlefetchArticles = async (orderNumber: string) => {
+    try {
+      const data = await fetchArticles(orderNumber);
+      const updatedArticles = data.map((article: { cBarcode: any }) => ({
+        ...article,
+        Rueckgabegrund: 'Keine Angabe',
+        articleNumber: article.cBarcode,
+      }));
+
+      setArticles(updatedArticles);
+      setShowArticles(true);
+      setMessage('');
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return { handlefetchArticles, articles, setArticles };
 };
