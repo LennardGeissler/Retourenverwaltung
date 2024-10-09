@@ -1,54 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
+import CSVTable from './components/CsvTable';
+import ArticlesTable from './components/ArticlesTable';
+import OrdersTable from './components/OrdersTable';
+import ButtonGroup from './components/ButtonGroup';
+import { SelectedArticle, Order } from './types';
+import { moveCsvFile } from './api';
 import './App.scss';
-
-interface Order {
-  Retourennummer: string,
-  Auftragsnummer: number,
-  Rechnungsnummer: string,
-  Erstelldatum: Date,
-  Lieferdatum: Date,
-  Kundenname: string,
-  Adresse: string,
-  GASBarcode: string,
-}
-
-interface Article {
-  Artikel: string,
-  Artikelname: string,
-  Anzahl: number,
-  Retourenstatus: string,
-  Rueckgabegrund: 'Keine Angabe',
-  articleNumber: string,
-}
-
-interface SelectedArticle {
-  articleNumber: string;
-  quantity: number;
-}
-
-interface AddressParts {
-  streetAndNumber: string;
-  postalCode: string;
-  city: string;
-}
-
-const fetchData = async (url: string) => {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Fetch Error');
-  return response.json();
-};
+import { useOrders } from './hooks/useOrders';
+import { useArticles } from './hooks/useArticles';
+import { useCSV } from './hooks/useCSV';
 
 const App: React.FC = () => {
-  const [barcode, setBarcode] = useState('');
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [selectedOrder, setSelectedOrder] = useState<Order[]>([]);
-  const [showArticles, setShowArticles] = useState(false);
+  const [barcode, setBarcode] = useState<string>('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | undefined>();
+  const [showArticles, setShowArticles] = useState<boolean>(false);
   const [selectedArticles, setSelectedArticles] = useState<SelectedArticle[]>([]);
   const [inputMode, setInputMode] = useState<'order' | 'article'>('order');
-  const [message, setMessage] = useState<string | null>('');
-  const [csvData, setCsvData] = useState<string[][]>([]); // Für CSV-Inhalt
-  const [showCsv, setShowCsv] = useState(false);
+  const [message, setMessage] = useState<string>('');
+
+  const { handlefetchArticles, articles, setArticles } = useArticles({ setSelectedArticles, setShowArticles, setMessage })
+  const { handlefetchOrders, orders, setOrders } = useOrders({ setShowArticles, setSelectedArticles, setSelectedOrder, handlefetchArticles });
+  const { handleGenerateCSV, loadCsvData, csvData, showCsv, setShowCsv } = useCSV({ selectedOrder, articles, setMessage });
 
   const barcodeInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -61,42 +33,6 @@ const App: React.FC = () => {
     }
   }, [showArticles]);
 
-  const fetchOrders = async (barcode: string) => {
-    try {
-      const data = await fetchData(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/orders/${barcode}`);
-      setOrders(data);
-      setShowArticles(false);
-      setSelectedArticles([]);
-
-      console.log(data);
-
-      if (data.length === 1) {
-        setSelectedOrder(data);
-        fetchArticles(data[0].Auftragsnummer.toString());
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const fetchArticles = async (orderNumber: string) => {
-    console.log(import.meta.env.VITE_SERVER, import.meta.env.VITE_PORT)
-    try {
-      const data = await fetchData(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/articles/${orderNumber}`);
-      const updatedArticles = data.map((article: { cBarcode: any }) => ({
-        ...article,
-        Rueckgabegrund: 'Keine Angabe',
-        articleNumber: article.cBarcode,
-      }));
-
-      setArticles(updatedArticles);
-      setShowArticles(true);
-      setMessage('');
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
   const handleBack = () => {
     setShowArticles(false);
     setOrders([]);
@@ -106,9 +42,42 @@ const App: React.FC = () => {
   };
 
   const handleOrderClick = (order: Order) => {
-    setSelectedOrder([order]);
-    fetchArticles(order.Auftragsnummer.toString());
+    setSelectedOrder(order);
+    handlefetchArticles(order.Auftragsnummer.toString());
   };
+
+  const handleBarcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setBarcode(value);
+
+    if (showArticles && inputMode === 'article') {
+      const articleToSelect = articles.find(article => article.Artikel === value);
+      if (articleToSelect) {
+        toggleSelectArticle(articleToSelect.Artikel, 'increase');
+      }
+    } else if (inputMode === 'order') {
+      handlefetchOrders(value);
+      setInputMode('article');
+    }
+    setBarcode('');
+  };
+
+  const handleCompleteReturns = async () => {
+    if (window.confirm("Möchten Sie die Retouren wirklich abschließen?")) {
+      await moveCsvFile()
+    };
+  };
+
+  const handleCloseApp = () => {
+    if (window.confirm("Möchten Sie die Anwendung wirklich schließen?")) {
+      window.close()
+    };
+  };
+
+  const handleAddReturn = () => {
+    handleGenerateCSV(selectedArticles)
+    handleBack();
+  }
 
   const toggleSelectArticle = (articleNumber: string, action: 'increase' | 'decrease') => {
     setSelectedArticles((prev) => {
@@ -134,164 +103,21 @@ const App: React.FC = () => {
     });
   };
 
-  const handleBarcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setBarcode(value);
-
-    if (showArticles && inputMode === 'article') {
-      const articleToSelect = articles.find(article => article.Artikel === value);
-      if (articleToSelect) {
-        toggleSelectArticle(articleToSelect.Artikel, 'increase');
-      }
-    } else if (inputMode === 'order') {
-      fetchOrders(value);
-      setInputMode('article');
-    }
-    setBarcode('');
-  };
-
-  const fetchCsvData = async () => {
-    console.log('Fetching CSV data!')
-    try {
-      const response = await fetch(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/get-csv`);
-      if (!response.ok) throw new Error('Fehler beim Abrufen der CSV-Daten');
-      const data = await response.text();
-      const parsedData = data
-        .split('\n')
-        .map((row) => row.split(';').map((col) => col.trim()));
-      setCsvData(parsedData);
-      console.log(parsedData)
-      setShowCsv(true);
-    } catch (error) {
-      console.error(error);
-      setMessage('Fehler beim Abrufen der CSV-Daten');
-    }
-  };
-
-  const generateCSV = async (updatedSelectedArticles: SelectedArticle[]) => {
-    const csvRows: string[] = [];
-
-    if (selectedOrder) {
-      console.log(selectedOrder)
-      const parsedAdress = parseAddress(selectedOrder[0].Adresse);
-      const customerInfo = `${selectedOrder[0].Kundenname};${parsedAdress.streetAndNumber};${parsedAdress.postalCode};${parsedAdress.city};${selectedOrder[0].Auftragsnummer}`;
-
-      updatedSelectedArticles.forEach((selectedArticle: { articleNumber: string; quantity: any; }) => {
-        const article = articles.find(a => a.Artikel === selectedArticle.articleNumber);
-        if (article) {
-          const row = `${customerInfo};${selectedArticle.articleNumber};${article.Artikelname};${selectedArticle.quantity};;${selectedOrder[0].GASBarcode};${selectedArticle.articleNumber}`;
-          csvRows.push(row);
-        }
-      });
-
-      const csvData = csvRows.join('\n');
-      localStorage.setItem('csvData', csvData);
-
-      try {
-        const response = await fetch(`http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_PORT}/api/append-csv`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ csvData }),
-        });
-
-        if (!response.ok) throw new Error('Fehler beim Anhängen der Daten');
-
-        setMessage('Retoure erfolgreich angelegt!')
-      } catch (error) {
-        setMessage('Fehler beim Anlegen der Retoure!');
-        console.error(error);
-      }
-    };
-  };
-
   let csvGenerated = false;
 
   const checkAllArticlesSelected = async (updatedSelectedArticles: SelectedArticle[]) => {
-    let allSelected = true;
-
-    articles.forEach((article) => {
-      const selectedArticle = updatedSelectedArticles.find(a => a.articleNumber === article.Artikel);
-      const selectedQuantity = selectedArticle ? selectedArticle.quantity : 0;
-
-      if (selectedQuantity !== article.Anzahl) {
-        allSelected = false;
-      }
+    const allSelected = articles.every(article => {
+      const selectedQuantity = updatedSelectedArticles.find(a => a.articleNumber === article.Artikel)?.quantity || 0;
+      return selectedQuantity === article.Anzahl;
     });
 
     if (allSelected && updatedSelectedArticles.length > 0 && !csvGenerated) {
       csvGenerated = true;
-      await generateCSV(updatedSelectedArticles);
+      await handleGenerateCSV(updatedSelectedArticles);
       handleBack();
     } else if (!allSelected) {
       csvGenerated = false;
     }
-  };
-
-  const parseAddress = (address: string): AddressParts => {
-    const parts = address.split(',').map(part => part.trim());
-    console.log(address, parts)
-
-    if (parts.length < 2) {
-      throw new Error('Die Adresse hat nicht das erwartete Format.');
-    }
-
-    const streetAndNumber = parts.slice(0, parts.length - 1).join(', ');
-    const lastPart = parts[parts.length - 1];
-    const postalCodeMatch = lastPart.split(' ');
-
-    if (!postalCodeMatch) {
-      throw new Error('PLZ und Ort konnten nicht extrahiert werden.');
-    }
-
-    const postalCode = postalCodeMatch[0];
-    const city = postalCodeMatch.slice(1).join(' ')
-
-    return {
-      streetAndNumber,
-      postalCode,
-      city,
-    };
-  };
-
-  const moveCsvFile = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/move-csv', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Fehler beim Verschieben der CSV-Datei');
-      }
-
-      const data = await response.json();
-      console.log(data.message);
-      setMessage('Retouren erfolgreich abgeschlossen!');
-    } catch (error) {
-      console.error(error);
-      setMessage('Fehler beim Abschluss der Retouren!');
-    }
-  };
-
-  const handleCompleteReturns = async () => {
-    const confirmed = window.confirm("Möchten Sie die Retouren wirklich abschließen?");
-
-    if (confirmed) {
-      await moveCsvFile();
-    }
-  };
-
-  const handleCloseApp = () => {
-    const confirmClose = window.confirm("Möchten Sie die Anwendung wirklich schließen?");
-    if (confirmClose) {
-      window.close();
-    }
-  };
-
-  const handleBackToMain = () => {
-    setShowCsv(false); // Zurück zur Standardansicht
   };
 
   return (
@@ -312,146 +138,36 @@ const App: React.FC = () => {
         <>
           {!showArticles ? (
             <>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Retourennummer</th>
-                    <th>Auftragsnummer</th>
-                    <th>Rechnungsnummer</th>
-                    <th>Erstelldatum</th>
-                    <th>Lieferdatum</th>
-                    <th>Kundenname</th>
-                    <th>Adresse</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order, index) => (
-                    <tr key={index} onClick={() => handleOrderClick(order)}>
-                      <td>{order.Retourennummer}</td>
-                      <td>{order.Auftragsnummer}</td>
-                      <td>{order.Rechnungsnummer}</td>
-                      <td>{new Date(order.Erstelldatum).toLocaleDateString()}</td>
-                      <td>{new Date(order.Lieferdatum).toLocaleDateString()}</td>
-                      <td>{order.Kundenname}</td>
-                      <td>{order.Adresse}</td>
-                    </tr>
-                  ))}
-                  {orders.length < 14 && Array.from({ length: 14 - orders.length }).map((_, index) => (
-                    <tr key={`empty-${index}`}>
-                      <td colSpan={7}>&nbsp;</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="button-group">
-                <button onClick={handleCloseApp} className='cmd-close'>Schließen</button>
-                <div className="right">
-                  <button onClick={fetchCsvData} className='cmd-history'>Historie anzeigen</button>
-                  <button onClick={handleCompleteReturns} className='cmd-complete'>Retouren abschließen</button>
-                </div>
-              </div>
+              <OrdersTable orders={orders} handleOrderClick={handleOrderClick} />
+              <ButtonGroup
+                buttons={[
+                  { label: 'Schließen', onClick: handleCloseApp, className: 'cmd-close' },
+                  { label: 'Historie anzeigen', onClick: loadCsvData, className: 'cmd-history' },
+                  { label: 'Retouren abschließen', onClick: handleCompleteReturns, className: 'cmd-complete' }
+                ]}
+              />
             </>
           ) : (
             <>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Art.-Nr.</th>
-                    <th>Artikelname</th>
-                    <th>Menge</th>
-                    <th>Retourenstatus</th>
-                    <th>Rückgabegrund</th>
-                    <th className='select'> </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {articles.map((article) => {
-                    const selectedArticle = selectedArticles.find(a => a.articleNumber === article.Artikel);
-                    const selectedCount = selectedArticle ? selectedArticle.quantity : 0;
-                    return (
-                      <tr key={article.Artikel}>
-                        <td>{article.Artikel}</td>
-                        <td>{article.Artikelname}</td>
-                        <td>{article.Anzahl}</td>
-                        <td>{article.Retourenstatus}</td>
-                        <td>{article.Rueckgabegrund}</td>
-                        <td>
-                          <div className="select-article">
-                            <button onClick={() => toggleSelectArticle(article.Artikel, 'decrease')} disabled={selectedCount <= 0}>-</button>
-                            <span>{selectedCount} / {article.Anzahl}</span>
-                            <button onClick={() => toggleSelectArticle(article.Artikel, 'increase')} disabled={selectedCount >= article.Anzahl}>+</button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {Array.from({ length: 14 - articles.length }).map((_, index) => (
-                    <tr key={`empty-article-${index}`}>
-                      <td colSpan={6}>&nbsp;</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="button-group">
-                <button onClick={handleBack} className='cmd-back'>Zurück</button>
-                <div className="right">
-                  <button
-                    onClick={() => {
-                      generateCSV(selectedArticles)
-                      handleBack();
-                    }}
-                    className='cmd-submit'>Bestätigung</button>
-                </div>
-              </div>
+              <ArticlesTable articles={articles} selectedArticles={selectedArticles} toggleSelectArticle={toggleSelectArticle} />
+              <ButtonGroup
+                buttons={[
+                  { label: 'Zurück', onClick: handleBack, className: 'cmd-back' },
+                  { label: 'Bestätigung', onClick: handleAddReturn, className: 'cmd-complete' },
+                ]}
+              />
             </>
           )}
         </>
       ) : (
         <>
-          <div className="csv-grid-container" style={{ maxHeight: articles.length > 14 ? '400px' : 'none', overflowY: articles.length > 14 ? 'auto' : 'visible' }}>
-            {/* CSV-Ansicht */}
-            {/* <table>
-            <thead>
-              <tr>
-                {csvData[0]?.map((header, index) => (
-                  <th key={index}>
-                    {header == "customerFacingNumber" ? 'cAuftragsNr' : header == "externalArticleId" ? 'cArtNr' : header == "articleNumber" ? "cBarcode" : header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {csvData.slice(1).map((row, rowIndex) => (
-                <tr key={rowIndex}>
-                  {row.map((col, colIndex) => (
-                    <td key={colIndex}>{col}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table> */}
-            <div className="grid-header">
-              {csvData[0]?.map((header, index) => (
-                <div className="header-grid-cell header" key={index}>
-                  {header === "customerFacingNumber" ? 'cAuftragsNr' : header === "externalArticleId" ? 'cArtNr' : header === "articleNumber" ? "cBarcode" : header}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid-body" style={{ maxHeight: articles.length > 14 ? '400px' : 'none', overflowY: articles.length > 14 ? 'auto' : 'visible' }}>
-              {csvData.slice(1).map((row, rowIndex) => (
-                <div className="grid-row" key={rowIndex}>
-                  {row.map((col, colIndex) => (
-                    <div className="grid-cell" key={colIndex}>{col}</div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="button-group">
-            <button onClick={handleBackToMain} className='cmd-back'>Zurück zur Übersicht</button>
-            <button onClick={handleCompleteReturns} className='cmd-complete'>Retouren abschließen</button>
-          </div>
+          <CSVTable csvData={csvData} />
+          <ButtonGroup
+            buttons={[
+              { label: 'Zurück zur Übersicht', onClick: () => setShowCsv(false), className: 'cmd-back' },
+              { label: 'Retouren abschließen', onClick: handleCompleteReturns, className: 'cmd-complete' },
+            ]}
+          />
         </>
       )
       }
