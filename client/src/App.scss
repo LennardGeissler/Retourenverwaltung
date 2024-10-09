@@ -12,7 +12,9 @@ body {
   margin: 0;
   padding: 20px;
   width: 100vw;
+  max-width: 100vw;
   height: 100vh;
+  max-height: 100vh;
 }
 
 h1 {
@@ -36,23 +38,58 @@ h3 {
 
 table {
   width: calc(100vw - 40px);
-  height: calc(100vh - 260px);
+  //height: calc(100vh - 260px);
+  max-height: calc(100vh - 260px);
   border-collapse: collapse;
   margin-bottom: 40px;
   border: 2px solid $app-fg;
   border-radius: 4px;
+  table-layout: fixed;
+  display: block;
 
-  th {
-    background-color: $app-fg;
-    color: white;
-    padding: 10px;
-    text-align: left;
-    flex-grow: 1;
+  thead {
+    position: relative;
+    display: block;
+    width: 100%;
+    //overflow-y: scroll;
   }
 
+  tbody {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-height: calc(100vh - 300px);
+    overflow-x: hidden;
+  }
+
+  tr {
+    display: flex;
+    align-items: center;
+    justify-content: baseline;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  th,
   td {
-    flex-grow: 1 !important;
+    flex: 1;
+    width: 10%;
+    display: block;
     padding: 10px;
+    //white-space: nowrap;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  th {
+    background-color: $app-fg !important;
+    color: white;
+  }
+
+  th:nth-child(7),
+  td:nth-child(7) {
+    flex: 2;
   }
 
   tr:nth-child(2n) {
@@ -73,9 +110,13 @@ table {
     }
   }
 
+  .select {
+    height: 38px;
+  }
+
   .select-article {
     display: flex;
-    justify-content: center;
+    justify-content: end;
     align-items: center;
     gap: 12px;
 
@@ -95,13 +136,78 @@ table {
   }
 }
 
+.csv-grid-container {
+  display: block;
+  border: 2px solid $app-fg;
+  height: calc(100vh - 300px);
+  margin-bottom: 40px;
+  overflow: hidden;
+}
+
+.grid-body {
+  display: block;
+  max-height: 300px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+
+.grid-header {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr) 2fr repeat(4, 1fr); 
+  background-color: $app-fg;
+  color: white;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.grid-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr) 2fr repeat(4, 1fr); 
+  width: 100%;
+}
+
+.grid-cell {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  //white-space: nowrap; // Verhindert Zeilenumbruch
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.header-grid-cell {
+  padding: 10px;
+  white-space: nowrap; // Verhindert Zeilenumbruch
+  text-overflow: ellipsis;
+  //overflow: hidden;
+}
+
+.header {
+  font-weight: bold;
+}
+
+.grid-row:nth-child(2n) .grid-cell {
+  background-color: #f0f0f0;
+}
+
+.grid-row:nth-child(2n+1) .grid-cell {
+  background-color: #ffffff;
+}
+
 .button-group {
   display: flex;
   justify-content: space-between;
   width: 100%;
   padding: 0;
 
-  .cmd-back, .cmd-submit, .cmd-complete, .cmd-close {
+  .cmd-back,
+  .cmd-submit,
+  .cmd-complete,
+  .cmd-close,
+  .cmd-history {
     width: 8vw;
     height: 54px;
     background-color: $header-bg;
