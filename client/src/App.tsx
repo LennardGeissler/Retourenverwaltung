@@ -9,6 +9,7 @@ import './App.scss';
 import { useOrders } from './hooks/useOrders';
 import { useArticles } from './hooks/useArticles';
 import { useCSV } from './hooks/useCSV';
+import LicenseCheck from './components/LicenseCheck';
 
 const App: React.FC = () => {
   const [barcode, setBarcode] = useState<string>('');
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [selectedArticles, setSelectedArticles] = useState<SelectedArticle[]>([]);
   const [inputMode, setInputMode] = useState<'order' | 'article'>('order');
   const [message, setMessage] = useState<string>('');
+  const [isLicenseValid, setIsLicenseValid] = useState<boolean | null>(null);
 
   const { handlefetchArticles, articles, setArticles } = useArticles({ setSelectedArticles, setShowArticles, setMessage })
   const { handlefetchOrders, orders, setOrders } = useOrders({ setShowArticles, setSelectedArticles, setSelectedOrder, handlefetchArticles });
@@ -143,57 +145,69 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLicenseValid = () => {
+    setIsLicenseValid(true);
+  };
+
   return (
     <div className="app">
-      <h1>Retourenverwaltung</h1>
-      <div className="menu">
-        <input
-          type="text"
-          ref={barcodeInputRef}
-          value={barcode}
-          onChange={handleBarcodeChange}
-          placeholder={showArticles ? 'Artikelnummer scannen' : 'Barcode scannen'}
-        />
-        <h3 style={message == 'Retoure erfolgreich angelegt!' || message == 'Retouren erfolgreich abgeschlossen!' ? { color: '#4caf50' } : { color: '#ff9999' }}>{message}</h3>
-      </div>
+      {isLicenseValid === null ? (
+        <LicenseCheck onLicenseValid={handleLicenseValid} /> // Lizenzüberprüfung
+      ) : isLicenseValid ? (
+        <div>
+          <h1>Retourenverwaltung</h1>
+          <div className="menu">
+            <input
+              type="text"
+              ref={barcodeInputRef}
+              value={barcode}
+              onChange={handleBarcodeChange}
+              placeholder={showArticles ? 'Artikelnummer scannen' : 'Barcode scannen'}
+            />
+            <h3 style={message == 'Retoure erfolgreich angelegt!' || message == 'Retouren erfolgreich abgeschlossen!' ? { color: '#4caf50' } : { color: '#ff9999' }}>{message}</h3>
+          </div>
 
-      {!showCsv ? (
-        <>
-          {!showArticles ? (
+          {!showCsv ? (
             <>
-              <OrdersTable orders={orders} handleOrderClick={handleOrderClick} />
-              <ButtonGroup
-                buttons={[
-                  { label: 'Schließen', onClick: handleCloseApp, className: 'cmd-close' },
-                  { label: 'Historie anzeigen', onClick: loadCsvData, className: 'cmd-history' },
-                  { label: 'Retouren abschließen', onClick: handleCompleteReturns, className: 'cmd-complete' }
-                ]}
-              />
+              {!showArticles ? (
+                <>
+                  <OrdersTable orders={orders} handleOrderClick={handleOrderClick} />
+                  <ButtonGroup
+                    buttons={[
+                      { label: 'Schließen', onClick: handleCloseApp, className: 'cmd-close' },
+                      { label: 'Historie anzeigen', onClick: loadCsvData, className: 'cmd-history' },
+                      { label: 'Retouren abschließen', onClick: handleCompleteReturns, className: 'cmd-complete' }
+                    ]}
+                  />
+                </>
+              ) : (
+                <>
+                  <ArticlesTable articles={articles} selectedArticles={selectedArticles} toggleSelectArticle={toggleSelectArticle} />
+                  <ButtonGroup
+                    buttons={[
+                      { label: 'Zurück', onClick: handleBack, className: 'cmd-back' },
+                      { label: 'Bestätigung', onClick: handleAddReturn, className: 'cmd-complete' },
+                    ]}
+                  />
+                </>
+              )}
             </>
           ) : (
             <>
-              <ArticlesTable articles={articles} selectedArticles={selectedArticles} toggleSelectArticle={toggleSelectArticle} />
+              <CSVTable csvData={csvData} />
               <ButtonGroup
                 buttons={[
-                  { label: 'Zurück', onClick: handleBack, className: 'cmd-back' },
-                  { label: 'Bestätigung', onClick: handleAddReturn, className: 'cmd-complete' },
+                  { label: 'Zurück zur Übersicht', onClick: () => setShowCsv(false), className: 'cmd-back' },
+                  { label: 'Retouren abschließen', onClick: handleCompleteReturns, className: 'cmd-complete' },
                 ]}
               />
             </>
-          )}
-        </>
+          )
+          }
+        </div>
       ) : (
-        <>
-          <CSVTable csvData={csvData} />
-          <ButtonGroup
-            buttons={[
-              { label: 'Zurück zur Übersicht', onClick: () => setShowCsv(false), className: 'cmd-back' },
-              { label: 'Retouren abschließen', onClick: handleCompleteReturns, className: 'cmd-complete' },
-            ]}
-          />
-        </>
-      )
-      }
+        <h3>Zugriff verweigert: Ungültige Lizenz</h3> // Fehlermeldung
+      )}
     </div >
   );
 };

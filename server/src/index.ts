@@ -6,5 +6,5 @@ dotenv.config();
 const port = process.env.PORT || 5000;
 
 app.listen(port, () => {
-  console.log(`Server läuft auf http://localhost:${port}`);
+  console.log(`Server läuft auf http://${process.env.DB_SERVER}:${port}`);
 });
