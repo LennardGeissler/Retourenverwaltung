@@ -24,7 +24,7 @@ export const useArticles = ({ setShowArticles, setMessage }: useArticlesProps) =
       setShowArticles(true);
       setMessage('');
     } catch (error) {
-      console.error(error);
+      console.log('Fehler beim Laden der Artikel: ', error);
     }
   };
 

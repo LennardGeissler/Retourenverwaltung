@@ -20,17 +20,27 @@ const OrdersTable:React.FC<OrdersTableProps> = ({ orders, handleOrderClick}) => 
                 </tr>
             </thead>
             <tbody>
-                {orders.map((order, index) => (
+                {orders.length > 0 ? orders.map((order, index) => (
                     <tr key={index} onClick={() => handleOrderClick(order)}>
                         <td>{order.Retourennummer}</td>
                         <td>{order.Auftragsnummer}</td>
                         <td>{order.Rechnungsnummer}</td>
-                        <td>{new Date(order.Erstelldatum).toLocaleDateString()}</td>
-                        <td>{new Date(order.Lieferdatum).toLocaleDateString()}</td>
+                        <td>{order.Erstelldatum instanceof Date ? new Date(order.Erstelldatum).toLocaleDateString() : null}</td>
+                        <td>{order.Lieferdatum instanceof Date ? new Date(order.Lieferdatum).toLocaleDateString() : null}</td>
                         <td>{order.Kundenname}</td>
                         <td>{order.Adresse}</td>
                     </tr>
-                ))}
+                )) : (
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                )}
                 {orders.length < 14 && Array.from({ length: 16 - orders.length }).map((_, index) => (
                     <tr key={`empty-${index}`}>
                         <td colSpan={7}>&nbsp;</td>

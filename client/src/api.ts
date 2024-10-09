@@ -2,8 +2,11 @@ const base_url = `http://${import.meta.env.VITE_SERVER}:${import.meta.env.VITE_P
 
 const fetchData = async (url: string): Promise<any> => {
   const response = await fetch(url);
-  if (!response.ok) throw new Error('Fetch Error');
-  return response.json();
+  if (response.ok) {
+    return await response.json();
+  } else if (!response.ok) {
+    throw new Error('An error occurred');
+  }
 };
 
 export const fetchOrders = async (barcode: string) => {
@@ -28,8 +31,8 @@ export const postCsvData = async (csvData: string) => {
 };
 
 export const moveCsvFile = async () => {
-  const response = await fetch(`${base_url}/csv/move-csv`, { 
-    method: 'POST', headers: { 'Content-Type': 'application/json' } 
+  const response = await fetch(`${base_url}/csv/move-csv`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }
   });
   if (!response.ok) throw new Error('Fehler beim Verschieben der CSV-Datei');
 };

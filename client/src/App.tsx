@@ -46,7 +46,9 @@ const App: React.FC = () => {
     handlefetchArticles(order.Auftragsnummer.toString());
   };
 
-  const handleBarcodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  let typingTimeout: NodeJS.Timeout | null = null;
+
+  const handleBarcodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setBarcode(value);
 
@@ -56,10 +58,31 @@ const App: React.FC = () => {
         toggleSelectArticle(articleToSelect.Artikel, 'increase');
       }
     } else if (inputMode === 'order') {
-      handlefetchOrders(value);
-      setInputMode('article');
+      if (value.length > 1) {
+        if (typingTimeout) {
+          clearTimeout(typingTimeout);
+        }
+
+        const success = await handlefetchOrders(value);
+        if (success) {
+          setInputMode('article');
+          setBarcode('');
+        }
+      } else {
+
+        if (typingTimeout) {
+          clearTimeout(typingTimeout);
+        }
+
+        typingTimeout = setTimeout(async () => {
+          const success = await handlefetchOrders(value);
+          if (success) {
+            setInputMode('article');
+            setBarcode('');
+          }
+        }, 3000);
+      }
     }
-    setBarcode('');
   };
 
   const handleCompleteReturns = async () => {

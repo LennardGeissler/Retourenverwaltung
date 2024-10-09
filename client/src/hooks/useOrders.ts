@@ -15,16 +15,24 @@ export const useOrders = ({ setShowArticles, setSelectedArticles, setSelectedOrd
     const handlefetchOrders = async (barcode: string) => {
         try {
             const data = await fetchOrders(barcode);
-            setOrders(data);
-            setShowArticles(false);
-            setSelectedArticles([]);
 
-            if (data.length === 1) {
-                setSelectedOrder(data[0]);
-                handlefetchArticles(data[0].Auftragsnummer.toString());
+            if (Array.isArray(data) && data.length !== 0) {
+                setOrders(data);
+                setShowArticles(false);
+                setSelectedArticles([]);
+    
+                if (data.length === 1) {
+                    setSelectedOrder(data[0]);
+                    handlefetchArticles(data[0].Auftragsnummer.toString());
+                }
+
+                return true;
+            } else {
+                return false;
             }
         } catch (error) {
-            console.error(error);
+            console.log('Fehler beim Laden der Aufträge: ', error);
+            return false;
         }
     };
 

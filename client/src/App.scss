@@ -51,6 +51,7 @@ table {
     position: relative;
     display: block;
     width: 100%;
+    background-color: $app-fg !important;
     //overflow-y: scroll;
   }
 
@@ -67,6 +68,7 @@ table {
     align-items: center;
     justify-content: baseline;
     width: 100%;
+    height: calc((100vh - 312px) / 16);
     table-layout: fixed;
     flex: 1;
   }
@@ -84,8 +86,12 @@ table {
   }
 
   th {
-    background-color: $app-fg !important;
     color: white;
+    background-color: $app-fg !important;
+    height: calc((100vh - 312px) / 16);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   th:nth-child(7),
@@ -109,10 +115,6 @@ table {
       background-color: rgba($color: $header-bg, $alpha: 0.08);
       cursor: pointer;
     }
-  }
-
-  .select {
-    height: 38px;
   }
 
   .select-article {
